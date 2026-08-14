@@ -1,0 +1,4 @@
+node_modules
+aiops-doc-dist
+docs/.vitepress/cache
+.DS_Store
