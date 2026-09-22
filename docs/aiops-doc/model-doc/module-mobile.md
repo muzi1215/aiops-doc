@@ -5,8 +5,8 @@
 
 > 子工程 `aiops-mobile/`（uni-app + Vue3 + TypeScript + Pinia），与后端 `aiops/`、PC 端
 > `aiops-platform-ui/` 平级。本文档描述页面结构、调用链、接口契约与只读边界；
-> 运行与打包操作见 [`aiops-mobile/README.md`](../aiops-mobile/README.md)，
-> 功能范围界定与原型见 [`mobile-prototype/README.md`](mobile-prototype/README.md)。
+> 运行与打包操作见源码仓库 `aiops-mobile/README.md`，
+> 功能范围界定与原型见源码仓库 `mobile-prototype/README.md`。
 
 ---
 
@@ -83,7 +83,7 @@ uni.switchTab({ url: '/pages/home/index' })                // :98
 
 登录页有「演示账号：aiops / 123123」快捷填充条（模板 `pages/login/index.vue:42`，逻辑 `:79 fillDemo()`），
 装机后可直接联调；页面**没有服务器地址输入框**，接口地址一律取自构建期的
-`VITE_API_BASE_APP`（见 [`aiops-mobile/README.md`](../aiops-mobile/README.md)）。
+`VITE_API_BASE_APP`（见源码仓库 `aiops-mobile/README.md`）。
 
 ### 2.3 Step 2：进入「我的工单」列表
 
@@ -341,7 +341,7 @@ npm run dev:h5         # http://localhost:9860，浏览器里点一遍
 
 分发：官网首页（仓库根目录 `index.html`）的「下载 App」按钮指向
 `/download/aiops-mobile.apk`，APK 放在 nginx html 目录的 `download/` 子目录下。
-nginx 需要给 `.apk` 补 MIME 类型，详细步骤见 [`download/README.md`](../download/README.md)。
+nginx 需要给 `.apk` 补 MIME 类型，详细步骤见源码仓库 `download/README.md`。
 
 ---
 
@@ -350,7 +350,7 @@ nginx 需要给 `.apk` 补 MIME 类型，详细步骤见 [`download/README.md`](
 移动端**不直连数据库、不跨模块调用**，只通过 HTTP 访问后端已有接口，
 因此新增页面时后端一般无需改动；确有无法绕过的需求（如历史 AI 报告回看），
 按「服务端前置改造」处理，统一记在
-[`aiops-mobile/README.md`](../aiops-mobile/README.md) 的「已知限制与后续待办」里，
+`aiops-mobile/README.md` 的「已知限制与后续待办」里，
 不要散落在各页面注释中。
 
 ---
