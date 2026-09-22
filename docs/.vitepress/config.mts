@@ -54,6 +54,7 @@ export default defineConfig({
             { text: '平台安全成熟度评估报告', link: '/aiops-doc/model-doc/security-assessment' },
             { text: '日志开发规范', link: '/aiops-doc/model-doc/logging-spec' },
             { text: '开发问题排查', link: '/aiops-doc/model-doc/troubleshooting-guide' },
+            { text: '移动端', link: '/aiops-doc/model-doc/module-mobile' },
             { text: '系统管理',
               collapsed: false,
               items:[
