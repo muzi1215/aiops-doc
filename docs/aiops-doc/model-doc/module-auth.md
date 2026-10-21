@@ -356,6 +356,32 @@ async def sys_user_add(param: SysUserAddParam, db: AsyncSession):
     ...
 ```
 
+### 敏感信息脱敏（★ 2026-10-22）
+
+```
+@Log 装饰器（赋值前脱敏）
+  → oper_param / json_result / error_msg → mask_json_str()
+  → oper_url（密码/令牌在路径中时，后续路径段 → ***）→ mask_url()
+        ↓
+add_sys_oper_log（唯一入库入口，再兜底脱敏一次）
+        ↓
+sys_oper_log 表（库 / binlog / 慢日志 / 备份 均无明文）
+        ↓
+SysOperLogVo.field_serializer（查询兜底，兼容存量脏数据）
+```
+
+| 工具/位置 | 作用 |
+|---|---|
+| `aiops/util/log_mask_util.py` | 递归脱敏 dict/list 敏感键（password/pwd/token/secret/apiKey/privateKey/credential/signature，含 `newPassword`、`dbPwd` 等前缀变体）；非 JSON 文本降级 `key=value` 正则脱敏；URL 路径段脱敏 |
+| `aiops/util/log_util.py` | `@Log` 装饰器赋值前脱敏（含异常日志与 `log.error` 内容） |
+| `aiops/auth/service/sys_oper_log_service.py` | `add_sys_oper_log` 落库前兜底脱敏 |
+| `aiops/auth/schemas/sys_oper_log.py` | `SysOperLogVo` 输出前二次脱敏 |
+| `scripts/mask_oper_log.py` | 存量数据刷库（默认演练，`--execute` 才写库，幂等可重跑） |
+
+**密码传输红线**：`PUT /admin/sysUser/updatePassword` 使用请求体 `{id, password}`，禁止再拼进 URL 路径（URL 会进 Nginx access log、浏览器历史，并被操作日志完整记录）。
+
+**操作日志查询条件**：`operName` / `title` / `applicationName` / `businessType` / `requestMethod` / `operIp` / `status` / `createTimeBegin` / `createTimeEnd`（前端操作日志页已提供操作类型、请求方式、操作IP 下拉/输入筛选）。
+
 ## 3.6 关键实现：统一响应格式
 
 `aiops/common/result_response.py`:
@@ -463,7 +489,7 @@ raise BusinessException(code=5001, msg="自定义消息")            # 自定义
 | 方法 | 路径 | 功能 |
 |------|------|------|
 | GET | `/admin/sysLoginLog/list/{page}/{limit}` | 登录日志分页（★ 新增 loginDurationMs + msg 增强） |
-| GET | `/admin/sysOperLog/list/{page}/{limit}` | 操作日志分页 |
+| GET | `/admin/sysOperLog/list/{page}/{limit}` | 操作日志分页（★ 新增 businessType / requestMethod / operIp 条件查询） |
 
 ---
 
@@ -472,6 +498,7 @@ raise BusinessException(code=5001, msg="自定义消息")            # 自定义
 ## 5.1 安全性
 
 - **密码不落地**：bcrypt 单向加密，即使数据库泄漏也无法还原明文
+- **敏感信息不落日志**：操作日志写入前脱敏（密码/令牌/密钥 → `***`），密码改请求体传输，库、binlog、慢日志、备份均无明文
 - **会话无状态**：JWT Token 不依赖服务端 Session，支持水平扩展
 - **旧密码兼容**：历史 MD5 密码验证通过后自动升级为 bcrypt，无缝迁移
 - **权限最小化**：每个 API 接口声明所需权限，无权限自动拦截

@@ -51,7 +51,7 @@
 | 方法 | URL | 权限 | Log |
 |------|-----|------|-----|
 | GET | `/sysUser/list/{page}/{limit}` | `bnt.sysUser.list` | — |
-| PUT | `/sysUser/updatePassword/{id}/{password}` | `bnt.sysUser.edit.password` | UPDATE |
+| PUT | `/sysUser/updatePassword` | `bnt.sysUser.edit.password` | UPDATE_PASSWORD |
 | PUT | `/sysUser/update` | `bnt.sysUser.update` | UPDATE |
 | PUT | `/sysUser/updateStatus/{id}/{status}` | `bnt.sysUser.status` | UPDATE |
 | POST | `/sysUser/save` | `bnt.sysUser.add` | INSERT |

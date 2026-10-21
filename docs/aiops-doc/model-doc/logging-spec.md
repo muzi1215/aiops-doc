@@ -1,8 +1,8 @@
 
 # AIops 开发日志规范（Logging Specification）
 
-> 版本：v1.0
-> 更新时间：2026-07-19
+> 版本：v1.1
+> 更新时间：2026-10-22（v1.1 追加第八章「禁止打印 / 落库明文敏感信息」规范）
 > 适用项目：AIops Platform
 
 ---
@@ -593,6 +593,39 @@ log.error(e)
 ```python
 log.exception(e)
 ```
+
+---
+
+## 禁止打印 / 落库明文敏感信息（★ 2026-10-22 追加）
+
+禁止把密码、令牌、密钥、签名等敏感信息写进**任何**日志或数据库字段：
+
+```python
+# ❌ 禁止：明文密码进日志 / 进 sys_oper_log / 进 URL
+log.info(f"[用户] 修改密码 id={user_id} pwd={password}")
+@router.put("/sysUser/updatePassword/{id}/{password}")   # 密码在 URL，会进 access log / 浏览器历史
+
+# ✅ 正确：密码走请求体 + 脱敏后再记录
+@router.put("/sysUser/updatePassword")
+async def sys_user_update_password(param: SysUserResetPasswordParam = Body(...)): ...
+log.info(f"[用户] 修改密码成功 id={param.id}")            # 只记标识，不记密码
+```
+
+**统一脱敏工具**：`aiops/util/log_mask_util.py`
+
+| 函数 | 用途 |
+|---|---|
+| `mask_json_str(raw)` | JSON 递归脱敏（`password` / `newPassword` / `dbPwd` / `token` / `secret` / `apiKey` / `privateKey` / `credential` / `signature` 等 → `***`），非 JSON 文本降级按 `key=value` 正则脱敏 |
+| `mask_url(url)` | URL 命中敏感关键字后，其后的路径段替换为 `***`（`/sysUser/updatePassword/123/xxx` → `/sysUser/updatePassword/***/***`） |
+| `is_sensitive_key(key)` | 字段名判定，供自定义脱敏复用 |
+
+**生效位置（三处，缺一不可）**：
+
+1. `@Log` 装饰器（`aiops/util/log_util.py`）— 赋值前脱敏 `oper_param` / `json_result` / `error_msg` / `oper_url`
+2. `add_sys_oper_log`（`aiops/auth/service/sys_oper_log_service.py`）— 唯一入库入口兜底脱敏，**保证库 / binlog / 慢日志 / 备份无明文**
+3. `SysOperLogVo`（`aiops/auth/schemas/sys_oper_log.py`）— 查询输出二次脱敏，兼容改造前的存量脏数据
+
+**只做查询时脱敏是不够的**：数据库、慢日志、binlog、备份里仍是明文，DBA 与任何能连库的人都能看到，多数合规审计直接算高危。必须在**写入前**处理。
 
 ---
 

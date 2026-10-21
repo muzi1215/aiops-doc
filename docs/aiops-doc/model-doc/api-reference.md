@@ -4768,6 +4768,9 @@
 | `operName` | Query | `string` | 否 |  |
 | `title` | Query | `string` | 否 |  |
 | `applicationName` | Query | `string` | 否 |  |
+| `businessType` | Query | `string` | 否 |  |
+| `requestMethod` | Query | `string` | 否 |  |
+| `operIp` | Query | `string` | 否 |  |
 | `status` | Query | `string` | 否 |  |
 | `createTimeBegin` | Query | `string` | 否 |  |
 | `createTimeEnd` | Query | `string` | 否 |  |
@@ -5183,7 +5186,7 @@
 |---|---|---|
 | `GET` | `/admin/sysUser/list/{page}/{limit}` | 查询系统用户分页信息 |
 | `GET` | `/admin/sysUser/findAll` | 查询所有用户信息 |
-| `PUT` | `/admin/sysUser/updatePassword/{id}/{password}` | 修改用户密码 |
+| `PUT` | `/admin/sysUser/updatePassword` | 修改用户密码 |
 | `POST` | `/admin/sysUser/sendPasswordCode` | 发送修改密码邮箱验证码 |
 | `POST` | `/admin/sysUser/changeMyPassword` | 修改本人密码（邮箱验证码校验） |
 | `GET` | `/admin/sysUser/get/{id}` | 根据用户ID查询用户信息 |
@@ -5244,18 +5247,22 @@
 
 ---
 
-### PUT /admin/sysUser/updatePassword/`{id}`/`{password}`
+### PUT /admin/sysUser/updatePassword
 
 **功能**：修改用户密码
-**说明**：修改用户密码：需验证旧密码
+**说明**：修改用户密码：密码走请求体传输，不再出现在 URL、访问日志与操作日志中
 **权限**：`bnt.sysUser.edit.password`
 
 **请求参数**：
 
-| 参数 | 位置 | 类型 | 必填 | 说明 |
-|---|---|---|---|---|
-| `id` | Path | `string` | 是 |  |
-| `password` | Path | `string` | 是 |  |
+**请求体（application/json）**：`SysUserResetPasswordParam`
+
+```json
+{
+  "id": "string",
+  "password": "string"
+}
+```
 
 **响应示例**：
 
@@ -6603,7 +6610,7 @@
 | `bnt.sysUser.ban` | /admin/sysUser/unban |
 | `bnt.sysUser.ban` | /admin/sysUser/unlock/{id} |
 | `bnt.sysUser.update` | /admin/sysUser/update |
-| `bnt.sysUser.edit.password` | /admin/sysUser/updatePassword/{id}/{password} |
+| `bnt.sysUser.edit.password` | /admin/sysUser/updatePassword |
 | `bnt.systemConfig.update` | /admin/system/config |
 | `bnt.systemConfig.update` | /admin/system/config/batch |
 | `bnt.modelQuota.update` | /modelQuota/update |
@@ -6626,6 +6633,6 @@
 | `bnt.sysUser.ban` | /sysUser/unban |
 | `bnt.sysUser.ban` | /sysUser/unlock/{id} |
 | `bnt.sysUser.update` | /sysUser/update |
-| `bnt.sysUser.edit.password` | /sysUser/updatePassword/{id}/{password} |
+| `bnt.sysUser.edit.password` | /sysUser/updatePassword |
 | `bnt.systemConfig.update` | /system/config |
 | `bnt.systemConfig.update` | /system/config/batch |

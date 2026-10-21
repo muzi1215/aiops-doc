@@ -240,7 +240,7 @@ interface RouteMeta {
 | 岗位管理 | `/system/post` | 岗位 CRUD |
 | 公告管理 | `/system/announcement` | 公告 CRUD + 发布推送 |
 | 登录日志 | `/system/loginLog` | 登录日志查询 |
-| 操作日志 | `/system/operLog` | 操作日志查询 |
+| 操作日志 | `/system/operLog` | 操作日志查询（操作人/模块/操作类型/请求方式/操作IP/状态/时间范围；详情字段已脱敏） |
 
 ## 3.2 服务器与运维
 
