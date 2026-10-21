@@ -145,7 +145,7 @@
 | SSH 命令黑名单 | `aiops/opscenter/service/ssh_exec/ssh_exec_service.py`（FORBIDDEN_COMMANDS） |
 | SSH 命令超时 | `aiops/util/ssh_client.py`（120s channel timeout） |
 | 操作日志 AOP | `aiops/util/log_util.py`（@Log 装饰器） |
-| 日志敏感信息脱敏 | `aiops/util/log_mask_util.py`（写时 + 查询兜底）+ `scripts/mask_oper_log.py`（存量刷库） |
+| 日志敏感信息脱敏 | `aiops/util/log_mask_util.py`（写时 + 查询兜底）+ `scripts/mask_oper_log.py`（存量刷库，可指定库/表/字段，默认演练） |
 | 登录日志 | `aiops/auth/service/sys_login_log/` |
 | 参数化查询 | 全项目 SQLAlchemy select/update（无拼接） |
 | 备份云存储 | `aiops/dbcenter/service/ops_database_backup/`（OSS/COS + 校验 + 清理） |

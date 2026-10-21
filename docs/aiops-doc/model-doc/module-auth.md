@@ -376,7 +376,7 @@ SysOperLogVo.field_serializer（查询兜底，兼容存量脏数据）
 | `aiops/util/log_util.py` | `@Log` 装饰器赋值前脱敏（含异常日志与 `log.error` 内容） |
 | `aiops/auth/service/sys_oper_log_service.py` | `add_sys_oper_log` 落库前兜底脱敏 |
 | `aiops/auth/schemas/sys_oper_log.py` | `SysOperLogVo` 输出前二次脱敏 |
-| `scripts/mask_oper_log.py` | 存量数据刷库（默认演练，`--execute` 才写库，幂等可重跑） |
+| `scripts/mask_oper_log.py` | 存量数据刷库（默认演练，`--execute` 才写库，幂等可重跑）；可指定 `--host/--port/--user/--password/--database` 与 `--table/--pk/--json-fields/--url-fields`，表结构反射获取，可复用于任意环境、归档表、同结构审计表 |
 
 **密码传输红线**：`PUT /admin/sysUser/updatePassword` 使用请求体 `{id, password}`，禁止再拼进 URL 路径（URL 会进 Nginx access log、浏览器历史，并被操作日志完整记录）。
 

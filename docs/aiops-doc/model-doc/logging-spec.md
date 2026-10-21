@@ -615,9 +615,11 @@ log.info(f"[用户] 修改密码成功 id={param.id}")            # 只记标识
 
 | 函数 | 用途 |
 |---|---|
-| `mask_json_str(raw)` | JSON 递归脱敏（`password` / `newPassword` / `dbPwd` / `token` / `secret` / `apiKey` / `privateKey` / `credential` / `signature` 等 → `***`），非 JSON 文本降级按 `key=value` 正则脱敏 |
-| `mask_url(url)` | URL 命中敏感关键字后，其后的路径段替换为 `***`（`/sysUser/updatePassword/123/xxx` → `/sysUser/updatePassword/***/***`） |
+| `mask_json_str(raw)` | JSON 递归脱敏（`password` / `newPassword` / `dbPwd` / `token` / `secret` / `apiKey` / `privateKey` / `credential` / `signature` / `accessKeyId` / `accessKeySecret` / `secretId` / `appKey` 等 → `***`），非 JSON 文本降级按 `key=value` 正则脱敏 |
+| `mask_url(url)` | URL 命中敏感关键字后，其后的路径段替换为 `***`（`/sysUser/updatePassword/123/xxx` → `/sysUser/updatePassword/***/***`）。判定规则：该段**本身是敏感词**（`/api/secret/xxx`）或**以敏感词结尾的动作名**（`updatePassword`、`resetPwd`、`decryptToken`）；**不按"包含"匹配** —— `/admin/opsCredential/update` 里的 `opsCredential` 只是资源名，不能因此把 `update` 打码（否则审计日志分不清做了什么操作） |
 | `is_sensitive_key(key)` | 字段名判定，供自定义脱敏复用 |
+
+> 键名归一化后匹配（小写 + 去除非字母数字）：`new_password` / `newPassword` / `new-password` 等价；`credentialName`、`username`、`authType` 等非敏感字段不会被误伤。
 
 **生效位置（三处，缺一不可）**：
 
@@ -626,6 +628,8 @@ log.info(f"[用户] 修改密码成功 id={param.id}")            # 只记标识
 3. `SysOperLogVo`（`aiops/auth/schemas/sys_oper_log.py`）— 查询输出二次脱敏，兼容改造前的存量脏数据
 
 **只做查询时脱敏是不够的**：数据库、慢日志、binlog、备份里仍是明文，DBA 与任何能连库的人都能看到，多数合规审计直接算高危。必须在**写入前**处理。
+
+**存量数据**用 `scripts/mask_oper_log.py` 刷一遍（默认演练，`--execute` 才写库；`--host/--database/--table/--json-fields/--url-fields` 可指定目标，支持对其它环境、归档表、同结构审计表复用；表结构反射获取，不依赖 ORM 模型）。
 
 ---
 

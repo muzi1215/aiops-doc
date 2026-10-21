@@ -1,8 +1,8 @@
 # 开发问题排查手册（Troubleshooting Guide）
 
-> **定位**：记录平台开发过程中遇到的实际问题、排查思路、根因与解决方案。既是团队排障手册，也是展示"问题排查能力"的核心材料。
+> **定位**：记录平台开发过程中遇到的实际问题、排查思路、根因与解决方案。既是团队排障手册，也是面试中展示"问题排查能力"的核心材料。
 >
-> **最后更新**：2026-08-08
+> **最后更新**：2026-10-22
 
 ---
 
@@ -24,6 +24,11 @@
 | 12 | 采集任务一直 skip（定时每天一次正常触发后） | 任务 107s 未跑完，每分钟调度被防重叠拦截 | 预期行为（max_instances=1），无需处理 |
 | 13 | 只读账号切换后 MySQL 深度指标丢失（连接池/慢查询无数据） | `mysql -S` 无账号连接依赖系统账号同名免密，新账号无 MySQL 账号 | MySQL 安装 auth_socket 插件 + 创建同名只读账号 |
 | 14 | `CREATE USER ... IDENTIFIED WITH auth_socket` 报 `Plugin 'auth_socket' is not loaded` | MySQL 未加载 auth_socket 插件 | 先 `INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'` |
+| 15 | 巡检 CPU 使用率恒定 100%，但服务器负载仅 0.05（明显空闲） | 系统级 gather 并发采集，top 采样窗口被并发命令瞬时打满 | CPU 单独顺序采样 + `top -bn2` 取瞬时值 |
+| 16 | 只读账号切换后远程备份失败：`mkdir ... Permission denied` | 远程备份在目标机写备份目录，只读账号无目录写权限 | 备份根目录属主交给只读账号（写权限限定在落盘目录） |
+| 17 | 前端日期选择器传参乱值（`yyyy-08-Sa 00:00:00`）且无法选截止时间 | Vue2→Vue3 迁移后 moment 小写格式令牌未适配 dayjs | `value-format` 改大写 + 换 `datetimerange` 单组件 |
+| 18 | 告警自动为已处理，但关联工单仍待处理/超时 | 旧代码未部署 + 系统级告警命名不一致导致误恢复 | 系统级类型集合 + 重新构建部署 |
+| 19 | 操作日志明文记录登录密码（库 / binlog / 备份可查） | 密码经 URL 传参 + `@Log` 原样序列化参数落库 | 写时脱敏 + 密码改请求体 + 查询兜底 + 存量刷库脚本 |
 
 ---
 
@@ -330,6 +335,37 @@ FLUSH PRIVILEGES;
 
 ---
 
+### 问题 15：巡检 CPU 使用率恒定 100%，但服务器实际空闲（负载仅 0.05）
+
+**现象**：巡检记录 CPU 使用率恒为 `100.0%`（触发 CPU 超阈值高危告警），但同一条记录的负载 `0.00, 0.02, 0.05`（2 核机器空闲 97%+）——**两个指标严重矛盾**。
+
+**排查过程**：
+1. 查库统计：8/8 并发改造后（19:37 起）cpu_usage 全部 100.0%，负载全部 <0.65——矛盾成立
+2. 对比时间线：并发改造前 CPU 显示 71.9%/97.1%（串行采样），改造后恒定 100%——**改动是诱因**
+3. 读代码：8/8 把系统级 14 条命令改为 `asyncio.gather` 并发执行，`top -bn1` 与其他 13 条命令（dmesg/ss/ps...）**同一时刻并发跑**
+4. 确认机制：`top -bn1` 的采样窗口内，其他命令正在 2 核机器上并发执行 → **瞬时 CPU 被并发命令打满** → top 采到假 100%；且 `-bn1` 首次采样对瞬时负载敏感（无基准帧）
+5. 排除干扰：内核错误（dmesg OOM 记录）与 CPU 是**两个独立指标**——OOM 告警真实，CPU 100% 是采样假象
+
+**根因**：并发采集让 `top` 的采样窗口与"其他命令执行"竞争——采样时刻 CPU 被自己发起的并发命令打满，采到的是"采集动作本身的瞬时负载"而非"服务器真实负载"。
+
+**解决**（两层）：
+```python
+# ① CPU 从 gather 并发中拆出，单独顺序采样（采样时无其他命令竞争）
+_cpu_stdout, _ = await ssh_exec_async(ssh, "top -bn2 -d 1 | grep 'Cpu(s)' | tail -1")
+
+# ② 其余 13 条命令照常 gather 并发
+```
+
+- `top -bn2 -d 1`：第一帧丢弃（-bn1 首帧为启动以来累计平均，服务器曾满负荷会拉高成假 100%），**第二帧 = 最近 1s 瞬时值**
+- CPU 采样独占时段执行，不再被并发命令干扰
+
+**经验**：
+- **性能采集类指标（CPU/内存瞬时值）必须单独采样**——与批量命令并发执行会采到"采集动作自身"的负载
+- **数据交叉验证**：CPU 100% 与负载 0.05 矛盾 → 先怀疑采样/解析，再怀疑真实负载
+- `top -bn1` 首帧是"启动以来累计平均"，瞬时值要用 `-bn2` 第二帧（top 经典坑）
+
+---
+
 ## 三、通用排查方法论（沉淀）
 
 ### 3.1 定时任务排查链路（按层确认）
@@ -368,7 +404,152 @@ FLUSH PRIVILEGES;
 
 ---
 
-## 四、问题排查案例（按价值排序）
+### 问题 16：只读账号切换后远程备份失败 `mkdir: Permission denied`
+
+**现象**：定时备份报错：
+```
+RuntimeError: 远程备份执行失败: mkdir: cannot create directory
+'/data/backup/mysql/ai_ops/_tmp_20260816_040000': Permission denied
+```
+
+**排查过程**：
+1. 时间线：8/8 平台 SSH 凭证从 root 切换为只读账号 `aiops_patrol` → 8/16 备份首次触发即失败
+2. 读远程备份命令（`ops_database_backup_executor.py`）：`mkdir -p {tmp_dir}` → `mysqldump > {tmp_dir}/file` → `tar -czf {backup_path}` → `rm -rf {tmp_dir}`——**全部需要备份目录写权限**
+3. 关键机制：即使 mysqldump 走 sudo（root 执行），**`>` 重定向由 shell（aiops_patrol）打开文件**——目录属主是 root 时依然无写权限。**光加 sudoers 白名单不够，目录属主才是关键**
+
+**根因**：只读账号对备份根目录（BACKUP_ROOT_DIR，默认 `/data/backup/mysql`）无写权限——只读加固与备份功能（目标机落盘）冲突。
+
+**解决**（写权限限定在落盘目录，其余位置仍只读）：
+```bash
+sudo mkdir -p /data/backup/mysql
+sudo chown -R aiops_patrol:aiops_patrol /data/backup/mysql
+# 或重跑 create_patrol_account.sh（v2.1+ 内置备份目录授权步骤）
+```
+脚本 `create_patrol_account.sh` v2.1 新增第 5 步：探测 `BACKUP_ROOT_DIR`（环境变量或默认 /data/backup/mysql）→ 创建 + chown。
+
+**经验**：
+- **只读账号 ≠ 全盘只读**：功能需要落盘时（备份/导出），写权限应**精确限定在数据目录**，系统其余位置保持只读——这是"最小写权限"的正确边界
+- 排查"切换账号后某功能挂"：逐个检查该功能的**写路径**（文件/目录/进程），不只是命令权限
+- 重定向（`>`）由调用方 shell 执行，sudo 只作用于命令本身——**目录属主比 sudo 白名单更关键**
+
+---
+
+### 问题 17：前端日期选择器传参乱值（`yyyy-08-Sa 00:00:00`）且无法选截止时间
+
+**现象**：操作日志页查询 URL 出现乱值参数：
+```
+/admin/sysOperLog/list/1/10?createTimeBegin=yyyy-08-Sa+00:00:00&createTimeEnd=yyyy-08-Sa+00:00:00
+```
+且时间选择器选了开始时间后，无法再选择其它日期作为截止时间。
+
+**排查过程**：
+1. 看 URL 参数：`yyyy-08-Sa` 是 **value-format 模板字符串被当字面量输出**的产物——日期组件根本没把格式解析生效
+2. 看模板：`el-date-picker` 用了 `value-format="yyyy-MM-dd HH:mm:ss"`
+3. 确认技术栈：项目已从 Vue2（Element UI + moment）升级到 Vue3（Element Plus + **dayjs**）——**格式令牌大小写体系不同**：
+   - Element UI（moment）：小写 `yyyy-MM-dd HH:mm:ss`
+   - Element Plus（dayjs）：**大写 `YYYY-MM-DD HH:mm:ss`**
+   小写格式在 dayjs 下不被识别 → 返回字面量乱值
+4. 交互问题同源：v-model 值非法 → date-picker 组件状态异常 → 第二个 picker 无法正常选择
+
+**根因**：Vue2→Vue3 迁移时日期格式未适配（moment 小写 → dayjs 大写）；两个独立 date-picker 的绑定值非法导致交互异常。
+
+**解决**（3 个页面统一修复）：
+- `sysOperLog/list.vue`、`sysLoginLog/list.vue`、`sysUser/list.vue`：两个独立"开始/截止"picker → **一个 `datetimerange` 范围选择器**（开始/截止一体，交互标准无冲突）
+- `value-format` 改为 dayjs 大写：`YYYY-MM-DD HH:mm:ss`
+- fetchData 从范围数组映射 `createTimeBegin/End`（或 `startTime/endTime`）
+
+**经验**：
+- **Element Plus 日期格式令牌必须大写**（YYYY/MM/DD/HH/mm/ss）——迁移 Vue3 后全项目 grep `value-format="yyyy` 排查同类问题（本次一次修复 3 页 6 处）
+- 日期范围查询优先用 `datetimerange` 单组件，避免独立 picker 的联动/状态问题
+- 排查"URL 参数是格式模板乱值"→ 直接定位 value-format 大小写
+
+### 问题 18：告警自动为已处理，但关联工单仍待处理/超时（系统级命名不一致 + 旧代码未部署）
+
+**现象**：告警 status=1（已处理），但关联工单仍待处理/超时未闭环——**8/18 修复（恢复去抖+工单联动）后仍出现**。数据特征：
+- 告警每 30 分钟一条，status 交替 0/1（25 条已处理 + 25 条未处理）
+- **handled_after_min=0**：告警创建后几秒内即被置已处理（同一轮巡检内）
+- 已处理告警内容**无任何标记**（无"[已恢复]"、无"[待工单处置]"）
+
+**排查过程**：
+1. 查已处理告警内容：无恢复标记 → 不是 recover_alarms（恢复会写标记）？——但 500 字符截断可能吞掉标记，需进一步确认
+2. 查 handled_after_min=0 → **同一轮巡检内恢复** → 新代码有恢复去抖（第 1 次不恢复），只有**旧代码**才可能同轮恢复 → **8/18 修复未部署到 Docker 容器（/app）**
+3. 查 triggered_types 与告警命名：**系统级告警 alarm_type_name 统一存"系统资源"（inspect_server 硬编码），而 triggered_types 存规则细分名**（CPU/内存→"系统资源"，内核→"内核"，网络→"网络"）
+4. 推演：内核规则触发时 triggered_types={"内核"} → 恢复判断 `"系统资源" in {"内核"}` = False → **误判"未触发"→ 刚创建的告警被立即恢复**；CPU 规则触发时 triggered_types 含"系统资源" → 保持——**这就是 25/25 交替的原因**（CPU/Swap 去抖周期导致触发类型变化）
+
+**根因**（两个叠加）：
+1. **部署的是 8/18 修复前的旧代码**（无恢复去抖/无工单联动）——Docker 未重新构建
+2. **系统级告警命名不一致**：告警表存统一名"系统资源"，triggered_types 存规则细分名（"内核"）→ 恢复判断恒误判——**即使部署新代码也会误恢复**
+
+**解决**：
+1. `alarm_recovery.py` 新增 `SYSTEM_LEVEL_TYPES = {"系统资源", "内核", "网络"}` + `_is_system_alarm_still_triggered()`：系统资源类告警只要触发类型含任一系统级细分名 → 视为仍触发，保持告警
+2. **重新构建部署 Docker**（代码修复必须部署才生效）
+
+**经验**：
+- **修复后必须部署/重启验证**——"改了吗？部署了吗？"是最常见的第一层坑
+- **跨源命名不一致是隐性地雷**：同一实体的"存储名"与"判断名"（告警表 vs 触发类型）必须同源或显式映射；数据特征（handled_after_min=0、交替 0/1）是定位的关键线索
+- 排查"告警状态与预期不符"：先看 update_time（谁在何时改的）→ 内容标记（哪个路径改的）→ 命名映射（判断是否匹配）
+
+### 问题 19：操作日志明文记录了用户密码（库 / binlog / 慢日志 / 备份全部可查）
+
+**现象**：例行安全自查时翻操作日志表，发现「修改密码」这条记录里明文躺着密码：
+
+```json
+{
+  "title": "用户管理",
+  "businessType": "UPDATE_PASSWORD",
+  "requestMethod": "PUT",
+  "operName": "lmz",
+  "operUrl": "/admin/sysUser/updatePassword/114231066/lx@aiops",
+  "operParam": "{\"id\": \"114231066\", \"password\": \"lx@aiops\"}",
+  "jsonResult": "{\"code\": 200, \"message\": \"成功\"}"
+}
+```
+
+`operUrl` 和 `operParam` 里各有一份明文密码。
+
+**排查过程**：
+1. 先确认数据来源：`operParam` 是 `@Log` 装饰器对路由函数 kwargs 的整体序列化 → 路由签名 `updatePassword(id: str, password: str)` 把密码当**路径参数**，必然进参数快照
+2. 再确认 URL：`operUrl` 取的是 `request.url.path` → 密码拼在 URL 里，**同一条明文又存了一份**
+3. 扩散面评估（关键）：明文不只在一张表 ——
+   - MySQL 表 `sys_oper_log.oper_param/oper_url`
+   - MySQL **binlog**（`ROW` 格式原样记录行变更）
+   - MySQL **慢查询日志**（超时 SQL 里带参数值）
+   - **数据库备份文件**（mysqldump 明文 SQL，还上传到了 OSS/COS）
+   - Nginx **access log**（记录完整 request_uri）
+4. 因此"只在前端或查询接口打码"的方案直接被否掉 —— DBA、能连库的人、拿到备份的人照样能看到，多数合规审计（等保 2.0 审计项）直接判高危
+
+**根因**（两层叠加）：
+1. **接口设计**：密码走 URL 路径参数，从源头上就无法避免落进各种日志
+2. **日志实现**：`@Log` 序列化 kwargs 时无任何敏感字段识别，原样落库
+
+**解决**（P0/P1/P2 三段，缺一段都不算修完）：
+
+| 优先级 | 动作 | 效果 |
+|---|---|---|
+| P0 | `@Log` 赋值前调用 `mask_json_str()` / `mask_url()` 脱敏 | 新日志从写入口就干净（库/日志/备份都不留明文） |
+| P0 | `PUT /sysUser/updatePassword` 改请求体 `{id, password}` | 从根源消灭 URL 明文（顺带不再进 Nginx access log、浏览器历史） |
+| P0 | `add_sys_oper_log`（唯一入库入口）再兜底脱敏 | 任何调用方都绕不过去，防漏 |
+| P1 | `SysOperLogVo` 用 `field_serializer` 输出前二次脱敏 | 兼容改造前的存量脏数据，页面立即看不到明文 |
+| P2 | `scripts/mask_oper_log.py` 存量刷库 | 一次性清掉历史明文，幂等可重跑（默认演练；`--host/--database` 指定环境，`--table` 可指向归档表/分表） |
+
+脱敏实现要点：`password/pwd/passwd/token/secret/apiKey/privateKey/credential/signature` + 业务前缀变体（`newPassword`、`oldPassword`、`dbPwd`）统一替换成固定 `***`（不用部分掩码，避免泄露长度）；URL 则把敏感关键字之后的路径段全替换掉 → `/admin/sysUser/updatePassword/***/***`。
+
+**验收**：
+```sql
+-- 全表扫一遍，命中即为漏网
+SELECT id, oper_url, oper_param FROM sys_oper_log
+WHERE oper_param LIKE '%"password": "%' AND oper_param NOT LIKE '%"password": "***%"'
+   OR oper_url LIKE '%/updatePassword/%/%';
+-- 期望：0 行
+```
+
+**经验**：
+- **"查询时脱敏"是伪安全**：数据本身还是明文，binlog / 慢日志 / 备份 / DBA 视角全部暴露 —— 脱敏必须发生在**写入前**，而且要有唯一写入口兜底
+- **密码永远不进 URL**：路径参数、查询串都会进 access log、浏览器历史、Referer、网关日志，排查泄露面时按"一次输入、N 处留存"来算
+- 安全整改要按"数据生命周期"过一遍：产生（接口设计）→ 存储（表）→ 复制（binlog/备份）→ 读取（查询接口），每段都要有对策，只堵一段等于没堵
+- 存量数据必须单独刷一遍 —— 代码改了不代表历史记录变干净
+
+## 四、面试可讲的问题排查案例（按价值排序）
 
 1. **静默空数据**（问题 10）：方言不兼容 + except 吞异常——最有代表性的排查案例
 2. **长事务锁冲突**（问题 4）：事务边界设计 + 行锁 + 重试
@@ -376,3 +557,7 @@ FLUSH PRIVILEGES;
 4. **随机 ID 碰撞**（问题 3）：数据量思维 + 唯一性设计
 5. **配置热生效名不副实**（问题 1）：验证"运行时路径"而非"文档说法"
 6. **驼峰序列化字段坑**（问题 9）：前后端约定以实际返回为准
+7. **日志明文密码**（问题 19）：安全整改按数据生命周期（产生→存储→复制→读取）逐段堵，讲清"写时脱敏 vs 查询时脱敏"的本质区别
+
+---
+
