@@ -34,7 +34,7 @@ export default defineConfig({
     nav: [
       { text: '首页', link: '/' },
       { text: '文档', link: '/aiops-doc/aiops-projact' },
-      { text: '项目演示', link: 'http://47.103.12.12/' },
+      { text: '项目演示', link: 'https://lxrelife.xyz/aiops/' },
     ],
 
      sidebar: {
