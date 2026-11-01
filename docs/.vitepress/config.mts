@@ -76,11 +76,19 @@ export default defineConfig({
               //link: '/aiops-doc/model-doc/module-server' 
             
             },
-            { text: 'AI管理', 
+             { text: '运维中心', 
               collapsed: false,
               items:[
-                {text: 'AI分析生成', link: '/aiops-doc/model-doc/module-ai'},
-                {text: '大模型调用记录与限额', link: '/aiops-doc/model-doc/module-llm-invoke-log'},
+                {text: '服务与巡检', link: '/aiops-doc/model-doc/module-server'},
+                {text: 'SSH命令白名单', link: '/aiops-doc/model-doc/ssh-command-whitelist'},
+              ],
+              //link: '/aiops-doc/model-doc/module-server' 
+            
+            },
+            { text: '发布平台管理', 
+              collapsed: false,
+              items:[
+                {text: '发布平台联动', link: '/aiops-doc/model-doc/module-deploylink'},
               ],
               //link: '/aiops-doc/model-doc/module-server' 
             

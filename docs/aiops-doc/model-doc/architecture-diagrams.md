@@ -114,6 +114,7 @@ flowchart TB
         CollectorRouter["collector/router/<br/>1个路由文件<br/>采集任务/统计"]
         StatisticsRouter["statistics/router/<br/>2个路由文件<br/>统计查询/分析记录"]
         CodegenRouter["codegen/router/<br/>1个路由文件<br/>表查询/预览/下载"]
+        DeployLinkRouter["deploylink/router/<br/>2个路由文件<br/>服务间 /openapi/v1<br/>后台只读 /admin/deployLink"]
     end
 
     subgraph 业务层["业务层 Service — 核心业务逻辑"]
@@ -125,6 +126,7 @@ flowchart TB
         CollectorService["collector/service/<br/>采集调度/服务发现<br/>指标解析"]
         StatisticsService["statistics/service/<br/>统计聚合/趋势分析<br/>异常检测/评分"]
         CodegenService["codegen/service/<br/>表反射/Jinja2渲染<br/>Zip打包"]
+        DeployLinkService["deploylink/service/<br/>静默窗匹配/硬上限截断<br/>事件去重/落库/分页"]
     end
 
     subgraph 数据模型层["数据模型层 Model — SQLAlchemy 2.0 异步ORM"]
@@ -136,6 +138,7 @@ flowchart TB
         CollectorModel["collector/model/<br/>2张表<br/>ops_collector_record<br/>ops_collector_detail"]
         StatisticsModel["statistics/model/<br/>1张表<br/>ops_analysis_record"]
         CommonModel["common/model/<br/>1张表<br/>ops_system_config"]
+        DeployLinkModel["deploylink/model/<br/>2张表<br/>ops_deploy_silence<br/>ops_deploy_event"]
     end
 
     subgraph 公共基础设施["公共基础设施"]
@@ -152,6 +155,7 @@ flowchart TB
     CollectorRouter --> CollectorService
     StatisticsRouter --> StatisticsService
     CodegenRouter --> CodegenService
+    DeployLinkRouter --> DeployLinkService
 
     AuthService --> AuthModel
     ServerService --> ServerModel
@@ -160,6 +164,7 @@ flowchart TB
     CollectorService --> CollectorModel
     StatisticsService --> StatisticsModel
     CodegenService --> CommonModel
+    DeployLinkService --> DeployLinkModel
 
     AuthService --> CommonBase
     ServerService --> Util

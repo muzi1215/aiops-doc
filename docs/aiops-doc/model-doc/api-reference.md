@@ -1,7 +1,7 @@
 # AIops 智能运维平台 — API 接口参考文档（企业版）
 
 > **文档版本**：v1.0 | **生成日期**：2026-08-08 | **生成方式**：FastAPI OpenAPI 自动生成
-> **接口总数**：238（含登录/后台管理）| 文档与代码一致，接口变更后重新运行 `uv run python scripts/gen_api_docs.py` 同步
+> **接口总数**：249（含登录/后台管理）| 文档与代码一致，接口变更后重新运行 `uv run python scripts/gen_api_docs.py` 同步
 
 ---
 
@@ -911,7 +911,139 @@
 
 ---
 
-## 三-9. info（1 个接口）
+## 三-9. deployLink（5 个接口）
+
+| 方法 | 路径 | 功能 |
+|---|---|---|
+| `GET` | `/admin/deployLink/silence/list/{page}/{limit}` | 分页查询静默窗 |
+| `GET` | `/admin/deployLink/silence/detail/{silence_id}` | 查询静默窗详情 |
+| `GET` | `/admin/deployLink/event/list/{page}/{limit}` | 分页查询发布事件 |
+| `GET` | `/admin/deployLink/eventTypes` | 事件类型字典 |
+| `GET` | `/admin/deployLink/event/detail/{event_db_id}` | 查询发布事件详情 |
+
+### GET /admin/deployLink/silence/list/`{page}`/`{limit}`
+
+**功能**：分页查询静默窗
+**说明**：静默窗分页查询（状态按到期时间实时计算）
+**权限**：`需登录（Bearer Token）`
+
+**请求参数**：
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---|---|---|
+| `page` | Path | `integer` | 是 | 页码，必须大于等于1 |
+| `limit` | Path | `integer` | 是 | 每页条数，1-100之间 |
+| `projectCode` | Query | `string` | 否 |  |
+| `environmentCode` | Query | `string` | 否 |  |
+| `source` | Query | `string` | 否 |  |
+| `status` | Query | `string` | 否 |  |
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+### GET /admin/deployLink/silence/detail/`{silence_id}`
+
+**功能**：查询静默窗详情
+**说明**：静默窗详情（与给平台调用的 OpenAPI 同源，口径一致）
+**权限**：`需登录（Bearer Token）`
+
+**请求参数**：
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---|---|---|
+| `silence_id` | Path | `string` | 是 | 静默窗ID |
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+### GET /admin/deployLink/event/list/`{page}`/`{limit}`
+
+**功能**：分页查询发布事件
+**说明**：发布事件分页查询。
+
+带 deployment_id 时按 sequence 升序（一次发布的时间线），
+不带时按接收时间倒序（最近的发布在最上），口径见 query_event_page。
+**权限**：`需登录（Bearer Token）`
+
+**请求参数**：
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---|---|---|
+| `page` | Path | `integer` | 是 | 页码，必须大于等于1 |
+| `limit` | Path | `integer` | 是 | 每页条数，1-100之间 |
+| `deploymentId` | Query | `string` | 否 |  |
+| `eventType` | Query | `string` | 否 |  |
+| `projectCode` | Query | `string` | 否 |  |
+| `environmentCode` | Query | `string` | 否 |  |
+| `serverId` | Query | `string` | 否 |  |
+| `host` | Query | `string` | 否 |  |
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+### GET /admin/deployLink/eventTypes
+
+**功能**：事件类型字典
+**说明**：事件类型下拉选项。
+
+前端不再自己维护一份 code→中文名映射：那份映射与平台侧枚举必须同步，
+写在两个仓库里必然漂移，而漏改的表现是「页面显示英文编码」，不会报警。
+**权限**：`需登录（Bearer Token）`
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+### GET /admin/deployLink/event/detail/`{event_db_id}`
+
+**功能**：查询发布事件详情
+**说明**：单条事件详情，含完整报文（列表不返回 payload，排查时才看）
+**权限**：`需登录（Bearer Token）`
+
+**请求参数**：
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---|---|---|
+| `event_db_id` | Path | `string` | 是 | 事件主键 |
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+## 三-10. info（1 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -932,7 +1064,7 @@
 
 ---
 
-## 三-10. llmInvokeLog（1 个接口）
+## 三-11. llmInvokeLog（1 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -967,7 +1099,7 @@
 
 ---
 
-## 三-11. llmModel（2 个接口）
+## 三-12. llmModel（2 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -1019,7 +1151,7 @@
 
 ---
 
-## 三-12. logAnalysis（2 个接口）
+## 三-13. logAnalysis（2 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -1061,7 +1193,7 @@
 
 ---
 
-## 三-13. logout（1 个接口）
+## 三-14. logout（1 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -1090,7 +1222,7 @@
 
 ---
 
-## 三-14. modelQuota（5 个接口）
+## 三-15. modelQuota（5 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -1223,7 +1355,7 @@
 
 ---
 
-## 三-15. onlineUser（3 个接口）
+## 三-16. onlineUser（3 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -1305,7 +1437,222 @@
 
 ---
 
-## 三-16. opsAlarm（6 个接口）
+## 三-17. openapi（6 个接口）
+
+| 方法 | 路径 | 功能 |
+|---|---|---|
+| `GET` | `/openapi/v1/health` | 连通性探测 |
+| `POST` | `/openapi/v1/silences` | 创建发布静默窗 |
+| `GET` | `/openapi/v1/silences/{silence_id}` | 查询发布静默窗 |
+| `PATCH` | `/openapi/v1/silences/{silence_id}` | 延长发布静默窗 |
+| `POST` | `/openapi/v1/silences/{silence_id}/close` | 关闭发布静默窗 |
+| `POST` | `/openapi/v1/deployment-events` | 上报发布事件 |
+
+### GET /openapi/v1/health
+
+**功能**：连通性探测
+**说明**：供平台在发布前判断 AIops 是否可用，据此决定是否走降级。
+**权限**：`需登录（Bearer Token）`
+
+**请求参数**：
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---|---|---|
+| `authorization` | Header | `string` | 否 | Bearer <服务令牌> |
+| `X-Service-Id` | Header | `string` | 否 | 调用方标识 |
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+### POST /openapi/v1/silences
+
+**功能**：创建发布静默窗
+**说明**：创建静默窗，同一幂等键重复调用回放已有窗口。
+**权限**：`需登录（Bearer Token）`
+
+**请求参数**：
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---|---|---|
+| `authorization` | Header | `string` | 否 | Bearer <服务令牌> |
+| `X-Service-Id` | Header | `string` | 否 | 调用方标识 |
+
+**请求体（application/json）**：`SilenceCreateVO`
+
+```json
+{
+  "idempotencyKey": "string",
+  "reason": "string",
+  "scope": {
+    "projectCode": "string",
+    "environmentCode": "string",
+    "servers": [
+      null
+    ]
+  },
+  "alertCategories": [
+    "string"
+  ],
+  "neverSilence": [
+    "string"
+  ],
+  "startAt": "string",
+  "expiresAt": "string"
+}
+```
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+### GET /openapi/v1/silences/`{silence_id}`
+
+**功能**：查询发布静默窗
+**说明**：查询静默窗详情，供平台补偿与人工排查。
+**权限**：`需登录（Bearer Token）`
+
+**请求参数**：
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---|---|---|
+| `silence_id` | Path | `string` | 是 | 静默窗ID |
+| `authorization` | Header | `string` | 否 | Bearer <服务令牌> |
+| `X-Service-Id` | Header | `string` | 否 | 调用方标识 |
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+### PATCH /openapi/v1/silences/`{silence_id}`
+
+**功能**：延长发布静默窗
+**说明**：延长到期时间，服务端按硬上限截断。
+**权限**：`需登录（Bearer Token）`
+
+**请求参数**：
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---|---|---|
+| `silence_id` | Path | `string` | 是 | 静默窗ID |
+| `authorization` | Header | `string` | 否 | Bearer <服务令牌> |
+| `X-Service-Id` | Header | `string` | 否 | 调用方标识 |
+
+**请求体（application/json）**：`SilenceExtendVO`
+
+```json
+{
+  "expiresAt": "string"
+}
+```
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+### POST /openapi/v1/silences/`{silence_id}`/close
+
+**功能**：关闭发布静默窗
+**说明**：关闭静默窗；已关闭时幂等回放，不报错。
+**权限**：`需登录（Bearer Token）`
+
+**请求参数**：
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---|---|---|
+| `silence_id` | Path | `string` | 是 | 静默窗ID |
+| `authorization` | Header | `string` | 否 | Bearer <服务令牌> |
+| `X-Service-Id` | Header | `string` | 否 | 调用方标识 |
+
+**请求体（application/json）**：`SilenceCloseVO`
+
+```json
+{
+  "reason": "string"
+}
+```
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+### POST /openapi/v1/deployment-events
+
+**功能**：上报发布事件
+**说明**：接收发布生命周期事件，按幂等键去重后留存。
+**权限**：`需登录（Bearer Token）`
+
+**请求参数**：
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---|---|---|
+| `authorization` | Header | `string` | 否 | Bearer <服务令牌> |
+| `X-Service-Id` | Header | `string` | 否 | 调用方标识 |
+
+**请求体（application/json）**：`DeployEventVO`
+
+```json
+{
+  "eventId": "string",
+  "eventType": "string",
+  "deploymentId": "string",
+  "idempotencyKey": "string",
+  "sequence": 0,
+  "project": "string",
+  "environment": "string",
+  "version": "string",
+  "previousVersion": "string",
+  "commit": "string",
+  "strategy": "string",
+  "server": "string",
+  "status": "string",
+  "occurredAt": "string",
+  "operator": "string",
+  "requestId": "string"
+}
+```
+
+**响应示例**：
+
+```json
+{ "code": 200, "message": "success", "totalCount": 0, "data": {} }
+```
+
+**失败响应**：`{ "code": 5000, "message": "业务异常说明" }`
+
+---
+
+## 三-18. opsAlarm（6 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -1452,7 +1799,7 @@
 
 ---
 
-## 三-17. opsBackupReplication（4 个接口）
+## 三-19. opsBackupReplication（4 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -1563,7 +1910,7 @@
 
 ---
 
-## 三-18. opsCollector（8 个接口）
+## 三-20. opsCollector（8 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -1746,7 +2093,7 @@
 
 ---
 
-## 三-19. opsCredential（6 个接口）
+## 三-21. opsCredential（6 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -1923,7 +2270,7 @@
 
 ---
 
-## 三-20. opsDatabase（7 个接口）
+## 三-22. opsDatabase（7 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -2135,7 +2482,7 @@
 
 ---
 
-## 三-21. opsDatabaseAuth（10 个接口）
+## 三-23. opsDatabaseAuth（10 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -2412,7 +2759,7 @@
 
 ---
 
-## 三-22. opsDatabaseBackup（9 个接口）
+## 三-24. opsDatabaseBackup（9 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -2640,7 +2987,7 @@
 
 ---
 
-## 三-23. opsDatabaseBackupPolicy（2 个接口）
+## 三-25. opsDatabaseBackupPolicy（2 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -2701,7 +3048,7 @@
 
 ---
 
-## 三-24. opsDatabaseCheckConfig（2 个接口）
+## 三-26. opsDatabaseCheckConfig（2 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -2761,7 +3108,7 @@
 
 ---
 
-## 三-25. opsDatabaseCheckRecord（5 个接口）
+## 三-27. opsDatabaseCheckRecord（5 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -2877,7 +3224,7 @@
 
 ---
 
-## 三-26. opsDatabaseInspection（5 个接口）
+## 三-28. opsDatabaseInspection（5 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -2998,7 +3345,7 @@
 
 ---
 
-## 三-27. opsDatabaseTable（6 个接口）
+## 三-29. opsDatabaseTable（6 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -3147,7 +3494,7 @@
 
 ---
 
-## 三-28. opsPatrolServiceConfig（9 个接口）
+## 三-30. opsPatrolServiceConfig（9 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -3412,7 +3759,7 @@
 
 ---
 
-## 三-29. opsServer（10 个接口）
+## 三-31. opsServer（10 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -3669,7 +4016,7 @@
 
 ---
 
-## 三-30. opsServicePatrol（5 个接口）
+## 三-32. opsServicePatrol（5 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -3792,7 +4139,7 @@
 
 ---
 
-## 三-31. rag（6 个接口）
+## 三-33. rag（6 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -3950,7 +4297,7 @@
 
 ---
 
-## 三-32. sshExec（2 个接口）
+## 三-34. sshExec（2 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -4000,7 +4347,7 @@
 
 ---
 
-## 三-33. statistics（5 个接口）
+## 三-35. statistics（5 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -4090,7 +4437,7 @@
 
 ---
 
-## 三-34. sysAnnouncement（7 个接口）
+## 三-36. sysAnnouncement（7 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -4251,7 +4598,7 @@
 
 ---
 
-## 三-35. sysDept（7 个接口）
+## 三-37. sysDept（7 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -4439,7 +4786,7 @@
 
 ---
 
-## 三-36. sysIcon（1 个接口）
+## 三-38. sysIcon（1 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -4460,7 +4807,7 @@
 
 ---
 
-## 三-37. sysLoginLog（2 个接口）
+## 三-39. sysLoginLog（2 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -4508,7 +4855,7 @@
 
 ---
 
-## 三-38. sysMenu（8 个接口）
+## 三-40. sysMenu（8 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -4732,7 +5079,7 @@
 
 ---
 
-## 三-39. sysOperLog（2 个接口）
+## 三-41. sysOperLog（2 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -4785,7 +5132,7 @@
 
 ---
 
-## 三-40. sysPost（7 个接口）
+## 三-42. sysPost（7 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -4964,7 +5311,7 @@
 
 ---
 
-## 三-41. sysRole（8 个接口）
+## 三-43. sysRole（8 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -5180,7 +5527,7 @@
 
 ---
 
-## 三-42. sysUser（17 个接口）
+## 三-44. sysUser（17 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -5638,7 +5985,7 @@
 
 ---
 
-## 三-43. system（7 个接口）
+## 三-45. system（7 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -5809,7 +6156,7 @@
 
 ---
 
-## 三-44. tencentCos（6 个接口）
+## 三-46. tencentCos（6 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -5942,7 +6289,7 @@
 
 ---
 
-## 三-45. workOrder（9 个接口）
+## 三-47. workOrder（9 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|
@@ -6221,7 +6568,7 @@
 
 ---
 
-## 三-46. 未分组（1 个接口）
+## 三-48. 未分组（1 个接口）
 
 | 方法 | 路径 | 功能 |
 |---|---|---|

@@ -193,6 +193,22 @@
 | systemConfig | PUT | `/system/config/batch` | `bnt.systemConfig.update` | UPDATE |
 | systemConfig | POST | `/system/config/reload` | `bnt.systemConfig.update` | — |
 
+### 2.5 deploylink（发布联动 — ★ 2026-11-02 新增，无权限点）
+
+| 端点 | 权限点 | 说明 |
+|------|--------|------|
+| `GET /admin/deployLink/silence/list/{page}/{limit}` | — | 静默窗分页（状态按到期时间实时算） |
+| `GET /admin/deployLink/silence/detail/{silence_id}` | — | 静默窗详情 |
+| `GET /admin/deployLink/event/list/{page}/{limit}` | — | 发布事件分页 |
+| `GET /admin/deployLink/eventTypes` | — | 事件类型字典 |
+| `GET /admin/deployLink/event/detail/{event_db_id}` | — | 单条事件详情 |
+
+不挂 `require_perms` 是**有意为之**（与 `sysOperLog` 同一口径）：这是「历史留痕的只读视图」，登录态可见即可，且全部只读、无写入口。
+
+要收紧时按顺序做两步：① 在 `sys_menu` 补 `type=2` 的按钮行（如 `bnt.deployLinkSilence.list`）；② 在路由上挂 `require_perms("...")`。**只在菜单行上写 `perms` 不生效** —— `find_user_perms_list` 只收集 `type==2` 的按钮行，漏了这步会得到 403 且菜单里看不到按钮。
+
+服务间通道 `/openapi/v1/**`（6 个端点）不走权限体系，走 `deps.require_service_token` 的「IP 白名单 → 服务令牌 → 调用方标识」三段校验，详见 `docs/module-deploylink.md`。
+
 ---
 
 ## 三、已知问题
